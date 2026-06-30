@@ -9,18 +9,22 @@ from py_simple_ctrl.core.dev_voice_led import simple_ctrl_voice_led
 import time
 import threading
 import queue
+import argparse
+
+parser = argparse.ArgumentParser(description='Hoozz Play MCP Server')
+parser.add_argument('--path', type=str, required=False, help='Password file path')
+args = parser.parse_args()
+
+passwd_path = args.path if args.path else 'devinfo.txt'
 
 class dev_manager(threading.Thread):
     def __init__(self, passwd_file):
         super().__init__()
         self.dev_password = { }
-        try:
-            with open(passwd_file, 'r', encoding='utf-8') as f:
-                _data = f.readlines()
-                _data = [_.replace('\r', '').replace('\n', '') for _ in _data]
-                self.dev_password = {_[:14]: _[14:] for _ in _data}
-        except Exception as e:
-            print(e)
+        with open(passwd_file, 'r', encoding='utf-8') as f:
+            _data = f.readlines()
+            _data = [_.replace('\r', '').replace('\n', '') for _ in _data]
+            self.dev_password = {_[:14]: _[14:] for _ in _data}
         print('The password has been loaded')
         # print(self.dev_password)
         self.dev_center = { }
@@ -167,17 +171,21 @@ def main():
     while main_loop:
         manager = None
         try:
-            manager = dev_manager('devinfo.txt')
+            manager = dev_manager(passwd_path)
             manager.manager_start()
             while True:
                 time.sleep(10)
+        except FileNotFoundError as e:
+            print(e)
+            main_loop = False
         except KeyboardInterrupt:
             print('Program interrupted by user')
             main_loop = False
         except Exception as e:
             print(e)
         finally:
-            manager.manager_stop()
+            if manager:
+                manager.manager_stop()
     print('Main exited')
 
 if __name__ == '__main__':
