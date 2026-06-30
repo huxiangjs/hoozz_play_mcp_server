@@ -1,0 +1,3 @@
+[submodule "py_simple_ctrl"]
+	path = py_simple_ctrl
+	url = https://github.com/huxiangjs/py_simple_ctrl.git
