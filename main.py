@@ -52,36 +52,36 @@ class dev_manager(threading.Thread):
             runtime_data['dev'] = dev
             info_name = dev.info_get_name()
             info_type = dev.info_get_type()
-            print(f'name:{info_name}, type:{info_type}')
+            print(f'# name:{info_name}, type:{info_type}')
             runtime_data['name'] = info_name
             runtime_data['type'] = info_type
             if isinstance(dev, simple_ctrl_button_led):
                 rgb = dev.get_color()
-                print('color:', rgb)
+                print('    color:', rgb)
                 runtime_data['color'] = rgb
             elif isinstance(dev, simple_ctrl_voice_led):
                 rgb = dev.get_color()
-                print('color:', rgb)
+                print('    color:', rgb)
                 runtime_data['color'] = rgb
             elif isinstance(dev, simple_ctrl_smart_ir):
                 key_count = dev.get_count()
-                print('key_count:', key_count)
+                print('    key_count:', key_count)
                 key_list = [ ]
                 for i in range(key_count):
                     key = dev.get_item(i)
-                    print(f'key_name: [{i}] {key}')
+                    print(f'    key_name: [{i}] {key}')
                     key_list.append(key)
                 runtime_data['key_list'] = key_list
             elif isinstance(dev, simple_ctrl_sensor):
                 sensor_count = dev.get_count()
-                print('sensor_count:', sensor_count)
+                print('    sensor_count:', sensor_count)
                 sensor_info = { }
                 for i in range(sensor_count):
                     type_str, sensor_id, sensor_name = dev.get_item(i)
                     if type_str not in sensor_info:
                         sensor_info[type_str] = { }
                     sensor_info[type_str][sensor_id] = sensor_name
-                    print(f'[{i}] {type_str}: [{sensor_id}]{sensor_name}')
+                    print(f'    [{i}] {type_str}: [{sensor_id}]{sensor_name}')
                 runtime_data['sensor_info'] = sensor_info
             with self.dev_center_lock:
                 self.dev_center[dev_id] = runtime_data
