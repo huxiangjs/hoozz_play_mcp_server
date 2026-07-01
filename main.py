@@ -10,8 +10,12 @@ import time
 import threading
 import queue
 import argparse
+from mcp.server.fastmcp import FastMCP
+import asyncio
 
-parser = argparse.ArgumentParser(description='Hoozz Play MCP Server')
+server_name = 'Hoozz Play MCP Server'
+
+parser = argparse.ArgumentParser(description=server_name)
 parser.add_argument('--path', type=str, required=False, help='Password file path')
 args = parser.parse_args()
 
@@ -55,10 +59,11 @@ class dev_manager(threading.Thread):
             runtime_data = { }
             runtime_data['dev'] = dev
             info_name = dev.info_get_name()
-            info_type = dev.info_get_type()
+            # info_type = dev.info_get_type()
+            info_type = type(dev).__name__
             print(f'# name:{info_name}, type:{info_type}')
             runtime_data['name'] = info_name
-            runtime_data['type'] = info_type
+            # runtime_data['type'] = info_type
             if isinstance(dev, simple_ctrl_button_led):
                 rgb = dev.get_color()
                 print('    color:', rgb)
@@ -166,20 +171,144 @@ class dev_manager(threading.Thread):
         self.server.stop()
         self.join()
 
+def run_mcp_server(manager):
+    '''
+    Enable the MCP service.
+    This function never returns unless an exception occurs.
+    '''
+
+    mcp = FastMCP(
+        name=server_name,
+        # host='localhost',
+        host='0.0.0.0',
+        port=8000,
+        log_level='INFO',
+        streamable_http_path='/mcp',
+        # auth=xxx,
+    )
+
+    @mcp.tool()
+    def manager_list_available_dev() -> list:
+        '''List all available devices
+
+        Args:
+            None
+
+        Returns:
+            list: List of currently available devices
+            The format for each of these items is as follows:
+                dev_id: Device ID, globally unique
+                dev_name: Device Name
+                class_name: Name of the device class
+                class_desc: Description of the class to which the device belongs
+        '''
+
+        result_data = [ ]
+        with manager.dev_center_lock:
+            for k, v in manager.dev_center.items():
+                dev = v['dev']
+                dev_id = k
+                dev_name = v['name']
+                class_name = type(dev).__name__.strip()
+                class_desc = type(dev).__doc__.strip()
+                result_data.append({
+                    'dev_id' : dev_id,
+                    'dev_name' : dev_name,
+                    'class_name' : class_name,
+                    'class_desc' : class_desc,
+                })
+        return result_data
+
+    @mcp.tool()
+    def dev_button_led_get_color(dev_id: str) -> dict:
+        f'''Get the color of the LED controlled by the device
+
+        Note: This interface can only be used with devices whose `class_name` is
+        `{simple_ctrl_button_led.__name__}`
+
+        Args:
+            dev_id: Device ID, globally unique
+
+        Returns:
+            dict: Result of the call
+            The meaning of each key is as follows:
+                msg: Call results: success or error messages
+                r: Red value
+                g: Green value
+                b: Blue value
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[dev_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_button_led):
+                    raise Exception('Mismatched device `class_name`')
+                r, g, b = runtime_data['color']
+                result_data = {
+                    'msg': f'Success',
+                    'r' : r,
+                    'g' : g,
+                    'b' : b,
+                }
+        except Exception as e:
+            result_data = {'msg': f'Error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_button_led_set_color(dev_id: str, r : int, g : int, b : int) -> dict:
+        f'''Set the color of the LED controlled by the device
+
+        Note: This interface can only be used with devices whose `class_name` is
+        `{simple_ctrl_button_led.__name__}`
+
+        Args:
+            dev_id: Device ID, globally unique
+            r: Red value
+            g: Green value
+            b: Blue value
+
+        Returns:
+            dict: Result of the call
+            The meaning of each key is as follows:
+                msg: Call results: success or error messages
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[dev_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_button_led):
+                    raise Exception('Mismatched device `class_name`')
+            dev.set_color((r, g, b))
+            result_data = {'msg': f'Success'}
+        except Exception as e:
+            result_data = {'msg': f'Error: {e}'}
+
+        return result_data
+
+    # Blocks on call
+    mcp.run(transport='streamable-http')
+
 def main():
+    '''Main'''
     main_loop = True
     while main_loop:
         manager = None
         try:
             manager = dev_manager(passwd_path)
             manager.manager_start()
-            while True:
-                time.sleep(10)
+            # Blocks on call
+            run_mcp_server(manager)
         except FileNotFoundError as e:
             print(e)
             main_loop = False
         except KeyboardInterrupt:
             print('Program interrupted by user')
+            main_loop = False
+        except asyncio.exceptions.CancelledError as e:
+            print(e)
             main_loop = False
         except Exception as e:
             print(e)
