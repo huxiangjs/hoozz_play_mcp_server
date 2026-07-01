@@ -45,6 +45,7 @@ class dev_manager(threading.Thread):
                 return
             runtime_data = self.dev_center[dev_id]
             runtime_data[event] = data
+            # print(event, data)
 
     def dev_connect(self, dev_id):
         try:
@@ -415,6 +416,128 @@ def run_mcp_server(manager):
                     raise Exception('Mismatched device `class_name`')
             dev.tx_send(key_name)
             result_data = {'msg': f'Success'}
+        except Exception as e:
+            result_data = {'msg': f'Error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_sensor_get_sensor_info(dev_id: str) -> dict:
+        f'''Get all available sensor names and information on a specified device
+
+        (A single device may have multiple sensors)
+
+        Note: This interface can only be used with devices whose `class_name` is
+        `{simple_ctrl_sensor.__name__}`
+
+        Args:
+            dev_id: Device ID, globally unique
+
+        Returns:
+            dict: Result of the call
+            The meaning of each items is as follows:
+                msg: Call results: success or error messages
+                sensor_info: list type
+                The meaning of each dict entry in the list is as follows:
+                    sensor_id: Sensor id
+                    sensor_type: Sensor type
+                    sensor_name: Sensor name
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[dev_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_sensor):
+                    raise Exception('Mismatched device `class_name`')
+                sensor_info = runtime_data['sensor_info']
+                merge_info = [ ]
+                for type, info in sensor_info.items():
+                    for id, name in info.items():
+                        merge_info.append({
+                            'sensor_id': id,
+                            'sensor_type': type,
+                            'sensor_name': name,
+                        })
+                result_data = {
+                    'msg': f'Success',
+                    'sensor_info' : merge_info,
+                }
+        except Exception as e:
+            result_data = {'msg': f'Error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_sensor_get_sensor_data(dev_id: str, query_list: list) -> dict:
+        f'''Query data from one or more sensors on a specified device
+
+        Note: This interface can only be used with devices whose `class_name` is
+        `{simple_ctrl_sensor.__name__}`
+
+        Args:
+            dev_id: Device ID, globally unique
+            query_list: list type
+                The meaning of each dict entry in the list is as follows:
+                    sensor_id (int): Sensor id
+                    sensor_type (str): Sensor type
+
+        Returns:
+            dict: Result of the call
+            The meaning of each items is as follows:
+                msg: Call results: success or error messages
+                data: list type
+                The meaning of each dict entry in the list is as follows:
+                    sensor_id: Sensor id
+                    sensor_type: Sensor type
+                    sensor_data: Sensor value
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[dev_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_sensor):
+                    raise Exception('Mismatched device `class_name`')
+                data = [ ]
+                for item in query_list:
+                    if type(item) is dict:
+                        if 'sensor_id' in item:
+                            sensor_id = item['sensor_id']
+                            sensor_type = item['sensor_type']
+                            value, unit = runtime_data[sensor_type][sensor_id]
+                            sensor_data = f'{value}{unit}'
+                            data.append({
+                                'sensor_id': sensor_id,
+                                'sensor_type': sensor_type,
+                                'sensor_data': sensor_data,
+                            })
+                        else:
+                            sensor_type = item['sensor_type']
+                            all_data = runtime_data[sensor_type]
+                            for sensor_id, (value, unit) in all_data.items():
+                                sensor_data = f'{value}{unit}'
+                                data.append({
+                                    'sensor_id': sensor_id,
+                                    'sensor_type': sensor_type,
+                                    'sensor_data': sensor_data,
+                                })
+                    elif type(item) is str:
+                        sensor_type = item
+                        all_data = runtime_data[sensor_type]
+                        for sensor_id, (value, unit) in all_data.items():
+                            sensor_data = f'{value}{unit}'
+                            data.append({
+                                'sensor_id': sensor_id,
+                                'sensor_type': sensor_type,
+                                'sensor_data': sensor_data,
+                            })
+                    else:
+                        raise Exception('Invalid parameter format')
+                result_data = {
+                    'msg': f'Success',
+                    'data' : data,
+                }
         except Exception as e:
             result_data = {'msg': f'Error: {e}'}
 
