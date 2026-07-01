@@ -231,7 +231,7 @@ def run_mcp_server(manager):
 
         Returns:
             dict: Result of the call
-            The meaning of each key is as follows:
+            The meaning of each items is as follows:
                 msg: Call results: success or error messages
                 r: Red value
                 g: Green value
@@ -271,7 +271,7 @@ def run_mcp_server(manager):
 
         Returns:
             dict: Result of the call
-            The meaning of each key is as follows:
+            The meaning of each items is as follows:
                 msg: Call results: success or error messages
         '''
 
@@ -282,6 +282,69 @@ def run_mcp_server(manager):
                 if not isinstance(dev, simple_ctrl_button_led):
                     raise Exception('Mismatched device `class_name`')
             dev.set_color((r, g, b))
+            result_data = {'msg': f'Success'}
+        except Exception as e:
+            result_data = {'msg': f'Error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_smart_ir_get_key_list(dev_id: str) -> dict:
+        f'''Get the names of all available IR remote control keys
+
+        Note: This interface can only be used with devices whose `class_name` is
+        `{simple_ctrl_smart_ir.__name__}`
+
+        Args:
+            dev_id: Device ID, globally unique
+
+        Returns:
+            dict: Result of the call
+            The meaning of each items is as follows:
+                msg: Call results: success or error messages
+                key_list: The names of all available IR remote control keys
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[dev_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_smart_ir):
+                    raise Exception('Mismatched device `class_name`')
+                key_list = runtime_data['key_list']
+                result_data = {
+                    'msg': f'Success',
+                    'key_list' : key_list,
+                }
+        except Exception as e:
+            result_data = {'msg': f'Error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_smart_ir_press_key(dev_id: str, key_name: str) -> dict:
+        f'''Press a key on the IR remote control
+
+        Note: This interface can only be used with devices whose `class_name` is
+        `{simple_ctrl_smart_ir.__name__}`
+
+        Args:
+            dev_id: Device ID, globally unique
+            key_name: The names of the keys on an IR remote control
+
+        Returns:
+            dict: Result of the call
+            The meaning of each items is as follows:
+                msg: Call results: success or error messages
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[dev_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_smart_ir):
+                    raise Exception('Mismatched device `class_name`')
+            dev.tx_send(key_name)
             result_data = {'msg': f'Success'}
         except Exception as e:
             result_data = {'msg': f'Error: {e}'}
