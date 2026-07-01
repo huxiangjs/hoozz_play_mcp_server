@@ -9,6 +9,12 @@ cd hoozz_play_mcp_server
 git submodule update --init --recursive
 ```
 
+## Python version
+```shell
+> python --version
+Python 3.10.11
+```
+
 ## Initialize the environment
 ```shell
 pip install -r requirements.txt
