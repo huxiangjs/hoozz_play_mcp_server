@@ -289,6 +289,75 @@ def run_mcp_server(manager):
         return result_data
 
     @mcp.tool()
+    def dev_voice_led_get_color(dev_id: str) -> dict:
+        f'''Get the color of the LED controlled by the device
+
+        Note: This interface can only be used with devices whose `class_name` is
+        `{simple_ctrl_voice_led.__name__}`
+
+        Args:
+            dev_id: Device ID, globally unique
+
+        Returns:
+            dict: Result of the call
+            The meaning of each items is as follows:
+                msg: Call results: success or error messages
+                r: Red value
+                g: Green value
+                b: Blue value
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[dev_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_voice_led):
+                    raise Exception('Mismatched device `class_name`')
+                r, g, b = runtime_data['color']
+                result_data = {
+                    'msg': f'Success',
+                    'r' : r,
+                    'g' : g,
+                    'b' : b,
+                }
+        except Exception as e:
+            result_data = {'msg': f'Error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_voice_led_set_color(dev_id: str, r : int, g : int, b : int) -> dict:
+        f'''Set the color of the LED controlled by the device
+
+        Note: This interface can only be used with devices whose `class_name` is
+        `{simple_ctrl_voice_led.__name__}`
+
+        Args:
+            dev_id: Device ID, globally unique
+            r: Red value
+            g: Green value
+            b: Blue value
+
+        Returns:
+            dict: Result of the call
+            The meaning of each items is as follows:
+                msg: Call results: success or error messages
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[dev_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_voice_led):
+                    raise Exception('Mismatched device `class_name`')
+            dev.set_color((r, g, b))
+            result_data = {'msg': f'Success'}
+        except Exception as e:
+            result_data = {'msg': f'Error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
     def dev_smart_ir_get_key_list(dev_id: str) -> dict:
         f'''Get the names of all available IR remote control keys
 
