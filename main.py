@@ -222,10 +222,10 @@ def run_mcp_server(manager):
 
     @mcp.tool()
     def dev_button_led_get_color(dev_id: str) -> dict:
-        f'''Get the color of the LED controlled by the device
+        '''Get the color of the LED controlled by the device
 
         Note: This interface can only be used with devices whose `class_name` is
-        `{simple_ctrl_button_led.__name__}`
+        `simple_ctrl_button_led`
 
         Args:
             dev_id: Device ID, globally unique
@@ -259,10 +259,10 @@ def run_mcp_server(manager):
 
     @mcp.tool()
     def dev_button_led_set_color(dev_id: str, r : int, g : int, b : int) -> dict:
-        f'''Set the color of the LED controlled by the device
+        '''Set the color of the LED controlled by the device
 
         Note: This interface can only be used with devices whose `class_name` is
-        `{simple_ctrl_button_led.__name__}`
+        `simple_ctrl_button_led`
 
         Args:
             dev_id: Device ID, globally unique
@@ -291,10 +291,10 @@ def run_mcp_server(manager):
 
     @mcp.tool()
     def dev_voice_led_get_color(dev_id: str) -> dict:
-        f'''Get the color of the LED controlled by the device
+        '''Get the color of the LED controlled by the device
 
         Note: This interface can only be used with devices whose `class_name` is
-        `{simple_ctrl_voice_led.__name__}`
+        `simple_ctrl_voice_led`
 
         Args:
             dev_id: Device ID, globally unique
@@ -328,10 +328,10 @@ def run_mcp_server(manager):
 
     @mcp.tool()
     def dev_voice_led_set_color(dev_id: str, r : int, g : int, b : int) -> dict:
-        f'''Set the color of the LED controlled by the device
+        '''Set the color of the LED controlled by the device
 
         Note: This interface can only be used with devices whose `class_name` is
-        `{simple_ctrl_voice_led.__name__}`
+        `simple_ctrl_voice_led`
 
         Args:
             dev_id: Device ID, globally unique
@@ -360,10 +360,10 @@ def run_mcp_server(manager):
 
     @mcp.tool()
     def dev_smart_ir_get_key_list(dev_id: str) -> dict:
-        f'''Get the names of all available IR remote control keys
+        '''Get the names of all available IR remote control keys
 
         Note: This interface can only be used with devices whose `class_name` is
-        `{simple_ctrl_smart_ir.__name__}`
+        `simple_ctrl_smart_ir`
 
         Args:
             dev_id: Device ID, globally unique
@@ -393,10 +393,10 @@ def run_mcp_server(manager):
 
     @mcp.tool()
     def dev_smart_ir_press_key(dev_id: str, key_name: str) -> dict:
-        f'''Press a key on the IR remote control
+        '''Press a key on the IR remote control
 
         Note: This interface can only be used with devices whose `class_name` is
-        `{simple_ctrl_smart_ir.__name__}`
+        `simple_ctrl_smart_ir`
 
         Args:
             dev_id: Device ID, globally unique
@@ -423,12 +423,12 @@ def run_mcp_server(manager):
 
     @mcp.tool()
     def dev_sensor_get_sensor_info(dev_id: str) -> dict:
-        f'''Get all available sensor names and information on a specified device
+        '''Get all available sensor names and information on a specified device
 
         (A single device may have multiple sensors)
 
         Note: This interface can only be used with devices whose `class_name` is
-        `{simple_ctrl_sensor.__name__}`
+        `simple_ctrl_sensor`
 
         Args:
             dev_id: Device ID, globally unique
@@ -470,10 +470,10 @@ def run_mcp_server(manager):
 
     @mcp.tool()
     def dev_sensor_get_sensor_data(dev_id: str, query_list: list) -> dict:
-        f'''Query data from one or more sensors on a specified device
+        '''Query data from one or more sensors on a specified device
 
         Note: This interface can only be used with devices whose `class_name` is
-        `{simple_ctrl_sensor.__name__}`
+        `simple_ctrl_sensor`
 
         Args:
             dev_id: Device ID, globally unique
