@@ -6,12 +6,14 @@ from py_simple_ctrl.core.dev_button_led import simple_ctrl_button_led
 from py_simple_ctrl.core.dev_smart_ir import simple_ctrl_smart_ir
 from py_simple_ctrl.core.dev_sensor import simple_ctrl_sensor
 from py_simple_ctrl.core.dev_voice_led import simple_ctrl_voice_led
-import time
+import os
 import threading
 import queue
 import argparse
 from mcp.server.fastmcp import FastMCP
 import asyncio
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 server_name = 'Hoozz Play MCP Server'
 
@@ -21,18 +23,56 @@ args = parser.parse_args()
 
 passwd_path = args.path if args.path else 'devinfo.txt'
 
+class dev_password(FileSystemEventHandler):
+    '''Load and monitor password file'''
+
+    def __init__(self, passwd_file):
+        super().__init__()
+        self._file_path = passwd_file
+        self._path = os.path.dirname(self._file_path)
+        self._path = '.' if len(self._path) == 0 else self._path
+        self._name = os.path.basename(self._file_path)
+        self._data_lock = threading.Lock()
+        self._observer = None
+        self.parse_file()
+
+    def parse_file(self):
+        self._password = { }
+        with open(self._file_path, 'r', encoding='utf-8') as f:
+            _data = f.readlines()
+            _data = [_.replace('\r', '').replace('\n', '') for _ in _data]
+            self._password = {_[:14]: _[14:] for _ in _data}
+        print('The password has been loaded')
+        # print(self._password)
+
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+        if event.src_path.endswith(self._name):
+            with self._data_lock:
+                self.parse_file()
+
+    def start(self):
+        self._observer = Observer()
+        self._observer.schedule(self, self._path, recursive=False)
+        self._observer.start()
+
+    def stop(self):
+        self._observer.stop()
+        self._observer.join()
+
+    @property
+    def data(self):
+        with self._data_lock:
+            password = self._password.copy()
+        return password
+
 class dev_manager(threading.Thread):
     def __init__(self, passwd_file):
         super().__init__()
-        self.dev_password = { }
-        with open(passwd_file, 'r', encoding='utf-8') as f:
-            _data = f.readlines()
-            _data = [_.replace('\r', '').replace('\n', '') for _ in _data]
-            self.dev_password = {_[:14]: _[14:] for _ in _data}
-        print('The password has been loaded')
-        # print(self.dev_password)
         self.dev_center = { }
         self.dev_center_lock = threading.Lock()
+        self.password = dev_password(passwd_file)
         self.running = False
         self.server = None
         self.manager_event = queue.Queue(maxsize=0)
@@ -49,9 +89,9 @@ class dev_manager(threading.Thread):
 
     def dev_connect(self, dev_id):
         try:
-            if dev_id not in self.dev_password:
+            if dev_id not in self.password.data:
                 return
-            dev_passwd = self.dev_password[dev_id]
+            dev_passwd = self.password.data[dev_id]
             dev = self.server.device_factory(
                 dev_id, dev_passwd,
                 lambda x,y : self.dev_on_change(dev_id, x, y)
@@ -162,6 +202,7 @@ class dev_manager(threading.Thread):
             simple_ctrl_voice_led
         ]
         self.running = True
+        self.password.start()
         self.server = simple_ctrl_manager(class_list, self.manager_on_change)
         self.server.start()
         self.start()
@@ -170,6 +211,7 @@ class dev_manager(threading.Thread):
         self.running = False
         self.manager_event.put(None)
         self.server.stop()
+        self.password.stop()
         self.join()
 
 def run_mcp_server(manager):
