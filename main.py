@@ -26,8 +26,9 @@ passwd_path = args.path if args.path else 'devinfo.txt'
 class dev_password(FileSystemEventHandler):
     '''Load and monitor password file'''
 
-    def __init__(self, passwd_file):
+    def __init__(self, passwd_file, on_change):
         super().__init__()
+        self._on_change = on_change
         self._file_path = passwd_file
         self._path = os.path.dirname(self._file_path)
         self._path = '.' if len(self._path) == 0 else self._path
@@ -51,6 +52,7 @@ class dev_password(FileSystemEventHandler):
         if event.src_path.endswith(self._name):
             with self._data_lock:
                 self.parse_file()
+            self._on_change()
 
     def start(self):
         self._observer = Observer()
@@ -68,11 +70,11 @@ class dev_password(FileSystemEventHandler):
         return password
 
 class dev_manager(threading.Thread):
-    def __init__(self, passwd_file):
+    def __init__(self, dev_password):
         super().__init__()
         self.dev_center = { }
         self.dev_center_lock = threading.Lock()
-        self.password = dev_password(passwd_file)
+        self.password = dev_password
         self.running = False
         self.server = None
         self.manager_event = queue.Queue(maxsize=0)
@@ -89,9 +91,10 @@ class dev_manager(threading.Thread):
 
     def dev_connect(self, dev_id):
         try:
-            if dev_id not in self.password.data:
-                return
-            dev_passwd = self.password.data[dev_id]
+            password = self.password.data
+            if dev_id not in password:
+                return False
+            dev_passwd = password[dev_id]
             dev = self.server.device_factory(
                 dev_id, dev_passwd,
                 lambda x,y : self.dev_on_change(dev_id, x, y)
@@ -135,14 +138,17 @@ class dev_manager(threading.Thread):
                 runtime_data['sensor_info'] = sensor_info
             with self.dev_center_lock:
                 self.dev_center[dev_id] = runtime_data
+            return True
         except Exception as e:
             print(e)
+            return False
 
     def run(self):
         '''
         Manage Devices
         '''
         print('Manager thread started')
+        deferred_set = set()
         while self.running:
             try:
                 # Device online and offline
@@ -151,9 +157,18 @@ class dev_manager(threading.Thread):
                     break
                 event, dev_id = m_event
                 if event == 'online':
-                    self.dev_connect(dev_id)
+                    ok = self.dev_connect(dev_id)
+                    if not ok:
+                        deferred_set.add(dev_id)
                 elif event == 'offline':
+                    if dev_id in deferred_set:
+                        deferred_set.remove(dev_id)
                     self.dev_disconnect(dev_id)
+                elif event == 'passwd_change':
+                    for item in deferred_set.copy():
+                        ok = self.dev_connect(item)
+                        if ok:
+                            deferred_set.remove(item)
                 self.manager_event.task_done()
             except queue.Empty:
                 # Re-connecting disconnected devices
@@ -194,6 +209,9 @@ class dev_manager(threading.Thread):
         print(f'[{event}] {dev_name} ({dev_id})')
         self.manager_event.put((event, dev_id))
 
+    def manager_on_passwd_change(self):
+        self.manager_event.put(('passwd_change', None))
+
     def manager_start(self):
         class_list = [
             simple_ctrl_button_led,
@@ -202,7 +220,6 @@ class dev_manager(threading.Thread):
             simple_ctrl_voice_led
         ]
         self.running = True
-        self.password.start()
         self.server = simple_ctrl_manager(class_list, self.manager_on_change)
         self.server.start()
         self.start()
@@ -211,7 +228,6 @@ class dev_manager(threading.Thread):
         self.running = False
         self.manager_event.put(None)
         self.server.stop()
-        self.password.stop()
         self.join()
 
 def run_mcp_server(manager):
@@ -593,8 +609,13 @@ def main():
     main_loop = True
     while main_loop:
         manager = None
+        password = None
         try:
-            manager = dev_manager(passwd_path)
+            def on_change():
+                manager.manager_on_passwd_change()
+            password = dev_password(passwd_path, on_change)
+            password.start()
+            manager = dev_manager(password)
             manager.manager_start()
             # Blocks on call
             run_mcp_server(manager)
@@ -612,6 +633,8 @@ def main():
         finally:
             if manager:
                 manager.manager_stop()
+            if password:
+                password.stop()
     print('Main exited')
 
 if __name__ == '__main__':
