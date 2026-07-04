@@ -159,7 +159,7 @@ class dev_manager(threading.Thread):
                 m_event = self.manager_event.get(timeout=1)
                 if m_event is None:
                     break
-                event, dev_id = m_event
+                event, dev_name, dev_id = m_event
                 if event == 'online':
                     ok = self.dev_connect(dev_id)
                     if not ok:
@@ -168,6 +168,11 @@ class dev_manager(threading.Thread):
                     if dev_id in deferred_set:
                         deferred_set.remove(dev_id)
                     self.dev_disconnect(dev_id)
+                elif event == 'name_change':
+                    with self.dev_center_lock:
+                        if dev_id in self.dev_center:
+                            runtime_data = self.dev_center[dev_id]
+                            runtime_data['name'] = dev_name
                 elif event == 'passwd_change':
                     for item in deferred_set.copy():
                         ok = self.dev_connect(item)
@@ -211,10 +216,10 @@ class dev_manager(threading.Thread):
         dev_name = dev_info.name
         dev_id = dev_info.id
         print(f'[{event}] {dev_name} ({dev_id})')
-        self.manager_event.put((event, dev_id))
+        self.manager_event.put((event, dev_name, dev_id))
 
     def manager_on_passwd_change(self):
-        self.manager_event.put(('passwd_change', None))
+        self.manager_event.put(('passwd_change', None, None))
 
     def manager_start(self):
         class_list = [
