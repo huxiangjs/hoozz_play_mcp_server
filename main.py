@@ -247,19 +247,10 @@ def run_mcp_server(manager):
     )
 
     @mcp.tool()
-    def manager_list_available_dev() -> list:
-        '''List all available devices
+    def manager_list_available_dev() -> list[dict]:
+        '''List all available devices.
 
-        Args:
-            None
-
-        Returns:
-            list: List of currently available devices
-            The format for each of these items is as follows:
-                dev_id: Device ID, globally unique
-                dev_name: Device Name
-                class_name: Name of the device class
-                class_desc: Description of the class to which the device belongs
+        Returns: [{device_id, device_name, class_name, class_desc}]
         '''
 
         result_data = [ ]
@@ -271,240 +262,163 @@ def run_mcp_server(manager):
                 class_name = type(dev).__name__.strip()
                 class_desc = type(dev).__doc__.strip()
                 result_data.append({
-                    'dev_id' : dev_id,
-                    'dev_name' : dev_name,
+                    'device_id' : dev_id,
+                    'device_name' : dev_name,
                     'class_name' : class_name,
                     'class_desc' : class_desc,
                 })
         return result_data
 
     @mcp.tool()
-    def dev_button_led_get_color(dev_id: str) -> dict:
-        '''Get the color of the LED controlled by the device
+    def dev_button_led_get_color(device_id: str) -> dict:
+        '''Get LED color from class_name 'simple_ctrl_button_led'.
 
-        Note: This interface can only be used with devices whose `class_name` is
-        `simple_ctrl_button_led`
-
-        Args:
-            dev_id: Device ID, globally unique
-
-        Returns:
-            dict: Result of the call
-            The meaning of each items is as follows:
-                msg: Call results: success or error messages
-                r: Red value
-                g: Green value
-                b: Blue value
+        Args: device_id
+        Returns: {msg, red(0-255), green(0-255), blue(0-255)}
         '''
 
         try:
             with manager.dev_center_lock:
-                runtime_data = manager.dev_center[dev_id]
+                runtime_data = manager.dev_center[device_id]
                 dev = runtime_data['dev']
                 if not isinstance(dev, simple_ctrl_button_led):
                     raise Exception('Mismatched device `class_name`')
                 r, g, b = runtime_data['color']
                 result_data = {
-                    'msg': f'Success',
-                    'r' : r,
-                    'g' : g,
-                    'b' : b,
+                    'msg': f'success',
+                    'red' : r,
+                    'green' : g,
+                    'blue' : b,
                 }
         except Exception as e:
-            result_data = {'msg': f'Error: {e}'}
+            result_data = {'msg': f'error: {e}'}
 
         return result_data
 
     @mcp.tool()
-    def dev_button_led_set_color(dev_id: str, r : int, g : int, b : int) -> dict:
-        '''Set the color of the LED controlled by the device
+    def dev_button_led_set_color(device_id: str, red: int, green: int, blue: int) -> dict:
+        '''Set LED color on class_name 'simple_ctrl_button_led'.
 
-        Note: This interface can only be used with devices whose `class_name` is
-        `simple_ctrl_button_led`
-
-        Args:
-            dev_id: Device ID, globally unique
-            r: Red value
-            g: Green value
-            b: Blue value
-
-        Returns:
-            dict: Result of the call
-            The meaning of each items is as follows:
-                msg: Call results: success or error messages
+        Args: device_id, red(0-255), green(0-255), blue(0-255)
+        Returns: {msg}
         '''
 
         try:
             with manager.dev_center_lock:
-                runtime_data = manager.dev_center[dev_id]
+                runtime_data = manager.dev_center[device_id]
                 dev = runtime_data['dev']
                 if not isinstance(dev, simple_ctrl_button_led):
                     raise Exception('Mismatched device `class_name`')
-            dev.set_color((r, g, b))
-            result_data = {'msg': f'Success'}
+            dev.set_color((red, green, blue))
+            result_data = {'msg': f'success'}
         except Exception as e:
-            result_data = {'msg': f'Error: {e}'}
+            result_data = {'msg': f'error: {e}'}
 
         return result_data
 
     @mcp.tool()
-    def dev_voice_led_get_color(dev_id: str) -> dict:
-        '''Get the color of the LED controlled by the device
+    def dev_voice_led_get_color(device_id: str) -> dict:
+        '''Get LED color from class_name 'simple_ctrl_voice_led'.
 
-        Note: This interface can only be used with devices whose `class_name` is
-        `simple_ctrl_voice_led`
-
-        Args:
-            dev_id: Device ID, globally unique
-
-        Returns:
-            dict: Result of the call
-            The meaning of each items is as follows:
-                msg: Call results: success or error messages
-                r: Red value
-                g: Green value
-                b: Blue value
+        Args: device_id
+        Returns: {msg, red(0-255), green(0-255), blue(0-255)}
         '''
 
         try:
             with manager.dev_center_lock:
-                runtime_data = manager.dev_center[dev_id]
+                runtime_data = manager.dev_center[device_id]
                 dev = runtime_data['dev']
                 if not isinstance(dev, simple_ctrl_voice_led):
                     raise Exception('Mismatched device `class_name`')
                 r, g, b = runtime_data['color']
                 result_data = {
-                    'msg': f'Success',
-                    'r' : r,
-                    'g' : g,
-                    'b' : b,
+                    'msg': f'success',
+                    'red' : r,
+                    'green' : g,
+                    'blue' : b,
                 }
         except Exception as e:
-            result_data = {'msg': f'Error: {e}'}
+            result_data = {'msg': f'error: {e}'}
 
         return result_data
 
     @mcp.tool()
-    def dev_voice_led_set_color(dev_id: str, r : int, g : int, b : int) -> dict:
-        '''Set the color of the LED controlled by the device
+    def dev_voice_led_set_color(device_id: str, red: int, green: int, blue: int) -> dict:
+        '''Set LED color on class_name 'simple_ctrl_voice_led'.
 
-        Note: This interface can only be used with devices whose `class_name` is
-        `simple_ctrl_voice_led`
-
-        Args:
-            dev_id: Device ID, globally unique
-            r: Red value
-            g: Green value
-            b: Blue value
-
-        Returns:
-            dict: Result of the call
-            The meaning of each items is as follows:
-                msg: Call results: success or error messages
+        Args: device_id, red(0-255), green(0-255), blue(0-255)
+        Returns: {msg}
         '''
 
         try:
             with manager.dev_center_lock:
-                runtime_data = manager.dev_center[dev_id]
+                runtime_data = manager.dev_center[device_id]
                 dev = runtime_data['dev']
                 if not isinstance(dev, simple_ctrl_voice_led):
                     raise Exception('Mismatched device `class_name`')
-            dev.set_color((r, g, b))
-            result_data = {'msg': f'Success'}
+            dev.set_color((red, green, blue))
+            result_data = {'msg': f'success'}
         except Exception as e:
-            result_data = {'msg': f'Error: {e}'}
+            result_data = {'msg': f'error: {e}'}
 
         return result_data
 
     @mcp.tool()
-    def dev_smart_ir_get_key_list(dev_id: str) -> dict:
-        '''Get the names of all available IR remote control keys
+    def dev_smart_ir_get_key_list(device_id: str) -> dict:
+        '''Get IR key list from class_name 'simple_ctrl_smart_ir'.
 
-        Note: This interface can only be used with devices whose `class_name` is
-        `simple_ctrl_smart_ir`
-
-        Args:
-            dev_id: Device ID, globally unique
-
-        Returns:
-            dict: Result of the call
-            The meaning of each items is as follows:
-                msg: Call results: success or error messages
-                key_list: The names of all available IR remote control keys
+        Args: device_id
+        Returns: {msg, key_list: [key_name, key_name, ...]}
         '''
 
         try:
             with manager.dev_center_lock:
-                runtime_data = manager.dev_center[dev_id]
+                runtime_data = manager.dev_center[device_id]
                 dev = runtime_data['dev']
                 if not isinstance(dev, simple_ctrl_smart_ir):
                     raise Exception('Mismatched device `class_name`')
                 key_list = runtime_data['key_list']
                 result_data = {
-                    'msg': f'Success',
+                    'msg': f'success',
                     'key_list' : key_list,
                 }
         except Exception as e:
-            result_data = {'msg': f'Error: {e}'}
+            result_data = {'msg': f'error: {e}'}
 
         return result_data
 
     @mcp.tool()
-    def dev_smart_ir_press_key(dev_id: str, key_name: str) -> dict:
-        '''Press a key on the IR remote control
+    def dev_smart_ir_press_key(device_id: str, key_name: str) -> dict:
+        '''Press IR key on class_name 'simple_ctrl_smart_ir'.
 
-        Note: This interface can only be used with devices whose `class_name` is
-        `simple_ctrl_smart_ir`
-
-        Args:
-            dev_id: Device ID, globally unique
-            key_name: The names of the keys on an IR remote control
-
-        Returns:
-            dict: Result of the call
-            The meaning of each items is as follows:
-                msg: Call results: success or error messages
+        Args: device_id, key_name
+        Returns: {msg}
         '''
 
         try:
             with manager.dev_center_lock:
-                runtime_data = manager.dev_center[dev_id]
+                runtime_data = manager.dev_center[device_id]
                 dev = runtime_data['dev']
                 if not isinstance(dev, simple_ctrl_smart_ir):
                     raise Exception('Mismatched device `class_name`')
             dev.tx_send(key_name)
-            result_data = {'msg': f'Success'}
+            result_data = {'msg': f'success'}
         except Exception as e:
-            result_data = {'msg': f'Error: {e}'}
+            result_data = {'msg': f'error: {e}'}
 
         return result_data
 
     @mcp.tool()
-    def dev_sensor_get_sensor_info(dev_id: str) -> dict:
-        '''Get all available sensor names and information on a specified device
+    def dev_sensor_get_sensor_info(device_id: str) -> dict:
+        '''Get all sensor info from class_name 'simple_ctrl_sensor' (device may have multiple).
 
-        (A single device may have multiple sensors)
-
-        Note: This interface can only be used with devices whose `class_name` is
-        `simple_ctrl_sensor`
-
-        Args:
-            dev_id: Device ID, globally unique
-
-        Returns:
-            dict: Result of the call
-            The meaning of each items is as follows:
-                msg: Call results: success or error messages
-                sensor_info: list type
-                The meaning of each dict entry in the list is as follows:
-                    sensor_id: Sensor id
-                    sensor_type: Sensor type
-                    sensor_name: Sensor name
+        Args: device_id
+        Returns: {msg, sensor_info: [{sensor_id, sensor_type, sensor_name}]}
         '''
 
         try:
             with manager.dev_center_lock:
-                runtime_data = manager.dev_center[dev_id]
+                runtime_data = manager.dev_center[device_id]
                 dev = runtime_data['dev']
                 if not isinstance(dev, simple_ctrl_sensor):
                     raise Exception('Mismatched device `class_name`')
@@ -518,42 +432,25 @@ def run_mcp_server(manager):
                             'sensor_name': name,
                         })
                 result_data = {
-                    'msg': f'Success',
+                    'msg': f'success',
                     'sensor_info' : merge_info,
                 }
         except Exception as e:
-            result_data = {'msg': f'Error: {e}'}
+            result_data = {'msg': f'error: {e}'}
 
         return result_data
 
     @mcp.tool()
-    def dev_sensor_get_sensor_data(dev_id: str, query_list: list) -> dict:
-        '''Query data from one or more sensors on a specified device
+    def dev_sensor_get_sensor_data(device_id: str, query_list: list) -> dict:
+        '''Query sensor data from class_name 'simple_ctrl_sensor'.
 
-        Note: This interface can only be used with devices whose `class_name` is
-        `simple_ctrl_sensor`
-
-        Args:
-            dev_id: Device ID, globally unique
-            query_list: list type
-                The meaning of each dict entry in the list is as follows:
-                    sensor_id (int): Sensor id
-                    sensor_type (str): Sensor type
-
-        Returns:
-            dict: Result of the call
-            The meaning of each items is as follows:
-                msg: Call results: success or error messages
-                data: list type
-                The meaning of each dict entry in the list is as follows:
-                    sensor_id: Sensor id
-                    sensor_type: Sensor type
-                    sensor_data: Sensor value
+        Args: device_id, query_list([{sensor_id, sensor_type}])
+        Returns: {msg, data: [{sensor_id, sensor_type, sensor_data}]}
         '''
 
         try:
             with manager.dev_center_lock:
-                runtime_data = manager.dev_center[dev_id]
+                runtime_data = manager.dev_center[device_id]
                 dev = runtime_data['dev']
                 if not isinstance(dev, simple_ctrl_sensor):
                     raise Exception('Mismatched device `class_name`')
@@ -593,11 +490,11 @@ def run_mcp_server(manager):
                     else:
                         raise Exception('Invalid parameter format')
                 result_data = {
-                    'msg': f'Success',
+                    'msg': f'success',
                     'data' : data,
                 }
         except Exception as e:
-            result_data = {'msg': f'Error: {e}'}
+            result_data = {'msg': f'error: {e}'}
 
         return result_data
 
