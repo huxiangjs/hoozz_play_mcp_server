@@ -88,6 +88,10 @@ class dev_manager(threading.Thread):
             runtime_data = self.dev_center[dev_id]
             runtime_data[event] = data
             # print(event, data)
+            # The keys have changed; the device needs to be refreshed.
+            if isinstance(runtime_data['dev'], simple_ctrl_smart_ir) and event == 'key':
+                print('The IR keys have changed')
+                runtime_data['state'] = 'dead'
 
     def dev_connect(self, dev_id):
         try:
