@@ -144,7 +144,7 @@ class dev_manager(threading.Thread):
                 self.dev_center[dev_id] = runtime_data
             return True
         except Exception as e:
-            print(e)
+            print(f'Connection failed: {e}')
             return False
 
     def run(self):
@@ -152,7 +152,7 @@ class dev_manager(threading.Thread):
         Manage Devices
         '''
         print('Manager thread started')
-        deferred_set = set()
+        deferred_dict = { }
         while self.running:
             try:
                 # Device online and offline
@@ -163,10 +163,11 @@ class dev_manager(threading.Thread):
                 if event == 'online':
                     ok = self.dev_connect(dev_id)
                     if not ok:
-                        deferred_set.add(dev_id)
+                        print(f'Connection to {dev_id} failed; added to the deferred_set')
+                        deferred_dict[dev_id] = 5
                 elif event == 'offline':
-                    if dev_id in deferred_set:
-                        deferred_set.remove(dev_id)
+                    if dev_id in deferred_dict:
+                        del deferred_dict[dev_id]
                     self.dev_disconnect(dev_id)
                 elif event == 'name_change':
                     with self.dev_center_lock:
@@ -174,10 +175,11 @@ class dev_manager(threading.Thread):
                             runtime_data = self.dev_center[dev_id]
                             runtime_data['name'] = dev_name
                 elif event == 'passwd_change':
-                    for item in deferred_set.copy():
+                    for item in deferred_dict.copy().keys():
                         ok = self.dev_connect(item)
                         if ok:
-                            deferred_set.remove(item)
+                            del deferred_dict[item]
+                        deferred_dict[item] = 5 # reset count
                 self.manager_event.task_done()
             except queue.Empty:
                 # Re-connecting disconnected devices
@@ -194,6 +196,14 @@ class dev_manager(threading.Thread):
                     v['dev'].disconnect()
                     print(f"Re-connecting: {v['name']}")
                     self.dev_connect(k)
+                # Try to connect to all devices on the deferred_dict
+                for id, count in deferred_dict.copy().items():
+                    if count == 0:
+                        continue
+                    ok = self.dev_connect(id)
+                    if ok:
+                        del deferred_dict[id]
+                    deferred_dict[id] -= 1
         runtime_list = []
         with self.dev_center_lock:
             runtime_list = list(self.dev_center.values())
