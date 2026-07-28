@@ -179,7 +179,8 @@ class dev_manager(threading.Thread):
                         ok = self.dev_connect(item)
                         if ok:
                             del deferred_dict[item]
-                        deferred_dict[item] = 5 # reset count
+                        else:
+                            deferred_dict[item] = 5 # reset count
                 self.manager_event.task_done()
             except queue.Empty:
                 # Re-connecting disconnected devices
@@ -203,7 +204,8 @@ class dev_manager(threading.Thread):
                     ok = self.dev_connect(id)
                     if ok:
                         del deferred_dict[id]
-                    deferred_dict[id] -= 1
+                    else:
+                        deferred_dict[id] -= 1
         runtime_list = []
         with self.dev_center_lock:
             runtime_list = list(self.dev_center.values())
