@@ -10,18 +10,33 @@ import os
 import threading
 import queue
 import argparse
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+from fastmcp.server.auth import AuthProvider
+from mcp.server.auth.provider import AccessToken
+import hmac
 import asyncio
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 server_name = 'Hoozz Play MCP Server'
 
+os.environ['FASTMCP_STREAMABLE_HTTP_PATH'] = '/mcp'
+
 parser = argparse.ArgumentParser(description=server_name)
 parser.add_argument('--path', type=str, required=False, help='Password file path')
+parser.add_argument('--auth-file', type=str, required=False, help='Access key file')
 args = parser.parse_args()
 
 passwd_path = args.path if args.path else 'devinfo.txt'
+key_file = args.auth_file if args.auth_file else 'access_keys.csv'
+access_keys = [ ]
+
+with open(key_file, 'r') as f:
+    for line in f.readlines():
+        user, key = ''.join(line.split()).split(',')
+        # print(user, key)
+        access_keys.append([user, key])
+print(f'{len(access_keys)} keys have been loaded')
 
 class dev_password(FileSystemEventHandler):
     '''Load and monitor password file'''
@@ -257,15 +272,37 @@ def run_mcp_server(manager):
     This function never returns unless an exception occurs.
     '''
 
-    mcp = FastMCP(
-        name=server_name,
-        # host='localhost',
-        host='0.0.0.0',
-        port=8000,
-        log_level='INFO',
-        streamable_http_path='/mcp',
-        # auth=xxx,
-    )
+    class StaticTokenAuth(AuthProvider):
+        '''
+        Client config:
+            header: Authorization
+            body: Bearer xxxxx
+        '''
+        async def verify_token(self, token: str) -> bool:
+            if not token:
+                return None
+
+            authenticated = False
+
+            for user, key in access_keys:
+                if not hmac.compare_digest(token.encode('utf-8'), key.encode('utf-8')):
+                    continue
+                print(f'Authenticated: {user}')
+                authenticated = True
+                break
+
+            if not authenticated:
+                return None
+
+            return AccessToken(
+                token=token,
+                client_id='static-client',
+                scopes=['*'],
+                expires_at=None,
+                resource=None,
+            )
+
+    mcp = FastMCP(name=server_name, auth=StaticTokenAuth())
 
     @mcp.tool()
     def manager_list_available_dev() -> list[dict]:
@@ -520,7 +557,12 @@ def run_mcp_server(manager):
         return result_data
 
     # Blocks on call
-    mcp.run(transport='streamable-http')
+    mcp.run(
+        transport='streamable-http',
+        host='0.0.0.0',
+        port=8000,
+        log_level='INFO',
+    )
 
 def main():
     '''Main'''
