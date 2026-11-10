@@ -59,7 +59,6 @@ class dev_password(FileSystemEventHandler):
             _data = f.readlines()
             _data = [_.replace('\r', '').replace('\n', '') for _ in _data]
             self._password = {_[:14]: _[14:] for _ in _data}
-            print(self._password)
         print('The password has been loaded')
         # print(self._password)
 
