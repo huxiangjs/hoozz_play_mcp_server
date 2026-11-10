@@ -59,6 +59,7 @@ class dev_password(FileSystemEventHandler):
             _data = f.readlines()
             _data = [_.replace('\r', '').replace('\n', '') for _ in _data]
             self._password = {_[:14]: _[14:] for _ in _data}
+            print(self._password)
         print('The password has been loaded')
         # print(self._password)
 
@@ -110,6 +111,7 @@ class dev_manager(threading.Thread):
                 runtime_data['state'] = 'dead'
 
     def dev_connect(self, dev_id):
+        dev = None
         try:
             password = self.password.data
             if dev_id not in password:
@@ -182,6 +184,15 @@ class dev_manager(threading.Thread):
             return True
         except Exception as e:
             print(f'Connection failed: {e}')
+            # A failed attempt must release its TCP connection. The device
+            # has a limited number of connections, and a leaked one (left
+            # open until its 5s ping timer fires) can exhaust the pool and
+            # make lwIP RST the oldest connection (e.g. the app's).
+            if dev is not None:
+                try:
+                    dev.disconnect()
+                except Exception:
+                    pass
             return False
 
     def run(self):
