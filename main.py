@@ -5,6 +5,7 @@ from py_simple_ctrl.core.simple_ctrl import simple_ctrl_manager
 from py_simple_ctrl.core.dev_button_led import simple_ctrl_button_led
 from py_simple_ctrl.core.dev_smart_ir import simple_ctrl_smart_ir
 from py_simple_ctrl.core.dev_sensor import simple_ctrl_sensor
+from py_simple_ctrl.core.dev_switch import simple_ctrl_switch
 from py_simple_ctrl.core.dev_voice_led import simple_ctrl_voice_led
 import os
 import threading
@@ -155,6 +156,27 @@ class dev_manager(threading.Thread):
                     sensor_info[type_str][sensor_id] = sensor_name
                     print(f'    [{i}] {type_str}: [{sensor_id}]{sensor_name}')
                 runtime_data['sensor_info'] = sensor_info
+            elif isinstance(dev, simple_ctrl_switch):
+                version = dev.get_version()
+                print('    version:', version)
+                state = dev.get_state()
+                print('    state:', 'on' if state else 'off')
+                runtime_data['version'] = version
+                runtime_data['switch_state'] = state
+                # Hardware version 1 supports voltage/current/power/energy
+                # measurement, pull an initial value (the device also pushes
+                # it every second)
+                if version == simple_ctrl_switch.SWITCH_VERSION1:
+                    voltage, current, power = dev.get_measure()
+                    energy = dev.get_energy()
+                    print(f'    measure: {voltage}V {current}A {power}W')
+                    print(f'    energy: {energy}kWh')
+                    runtime_data['measure'] = {
+                        'voltage': (voltage, 'V'),
+                        'current': (current, 'A'),
+                        'power': (power, 'W'),
+                        'energy': (energy, 'kWh'),
+                    }
             with self.dev_center_lock:
                 self.dev_center[dev_id] = runtime_data
             return True
@@ -253,6 +275,7 @@ class dev_manager(threading.Thread):
             simple_ctrl_button_led,
             simple_ctrl_smart_ir,
             simple_ctrl_sensor,
+            simple_ctrl_switch,
             simple_ctrl_voice_led
         ]
         self.running = True
@@ -551,6 +574,133 @@ def run_mcp_server(manager):
                     'msg': f'success',
                     'data' : data,
                 }
+        except Exception as e:
+            result_data = {'msg': f'error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_switch_get_relay_state(device_id: str) -> dict:
+        '''Get the relay state from class_name 'simple_ctrl_switch'.
+
+        Args: device_id
+        Returns: {msg, state(true=on, false=off)}
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[device_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_switch):
+                    raise Exception('Mismatched device `class_name`')
+                result_data = {
+                    'msg': f'success',
+                    'state' : runtime_data['switch_state'],
+                }
+        except Exception as e:
+            result_data = {'msg': f'error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_switch_get_feature(device_id: str) -> dict:
+        '''Get the features supported by class_name 'simple_ctrl_switch'
+        based on its hardware version.
+
+        Hardware versions:
+            0: relay control
+            1: relay control + voltage/current/power/energy measurement
+
+        Args: device_id
+        Returns: {msg, version, features}
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[device_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_switch):
+                    raise Exception('Mismatched device `class_name`')
+                version = runtime_data['version']
+                features = ['relay control']
+                if version == simple_ctrl_switch.SWITCH_VERSION1:
+                    features += ['voltage/current/power/energy measurement']
+                result_data = {
+                    'msg': f'success',
+                    'version' : version,
+                    'features' : features,
+                }
+        except Exception as e:
+            result_data = {'msg': f'error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_switch_set_relay_state(device_id: str, state: bool) -> dict:
+        '''Set the relay state on class_name 'simple_ctrl_switch'.
+
+        Args: device_id, state(true=on, false=off)
+        Returns: {msg, state}
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[device_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_switch):
+                    raise Exception('Mismatched device `class_name`')
+            dev.set_state(state)
+            with manager.dev_center_lock:
+                # Update the cache immediately; the device also pushes a
+                # state change notify, which arrives asynchronously
+                runtime_data['switch_state'] = state
+            result_data = {
+                'msg': f'success',
+                'state' : state,
+            }
+        except Exception as e:
+            result_data = {'msg': f'error: {e}'}
+
+        return result_data
+
+    @mcp.tool()
+    def dev_switch_get_measure(device_id: str) -> dict:
+        '''Get voltage/current/power/energy from class_name 'simple_ctrl_switch'.
+
+        Args: device_id
+        Returns: {msg, version, voltage, current, power, energy}
+        '''
+
+        try:
+            with manager.dev_center_lock:
+                runtime_data = manager.dev_center[device_id]
+                dev = runtime_data['dev']
+                if not isinstance(dev, simple_ctrl_switch):
+                    raise Exception('Mismatched device `class_name`')
+                version = runtime_data['version']
+                if version != simple_ctrl_switch.SWITCH_VERSION1:
+                    raise Exception(
+                        f'Hardware version {version} does not support '
+                        f'voltage/current/power/energy measurement'
+                    )
+                if 'measure' in runtime_data:
+                    measure = runtime_data['measure']
+                else:
+                    # No notify received yet; query the device directly
+                    voltage, current, power = dev.get_measure()
+                    energy = dev.get_energy()
+                    measure = {
+                        'voltage': (voltage, 'V'),
+                        'current': (current, 'A'),
+                        'power': (power, 'W'),
+                        'energy': (energy, 'kWh'),
+                    }
+                result_data = {
+                    'msg': f'success',
+                    'version' : version,
+                }
+                for key, (value, unit) in measure.items():
+                    result_data[key] = f'{value:.3f}{unit}'
         except Exception as e:
             result_data = {'msg': f'error: {e}'}
 
